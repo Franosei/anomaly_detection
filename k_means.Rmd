@@ -1,0 +1,238 @@
+---
+title: "Bigdata"
+output: html_document
+date: '2022-05-16'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,include=FALSE}
+library(tidyverse)
+library(scatterplot3d)
+library(dplyr)
+library(plotly)
+library(mclust)
+library(ggplot2)
+```
+
+```{r,include=FALSE}
+path2 <- "/home/ubuntulab/data-sample/"
+temp2 <- list.files(path = path2, pattern = "part-*")
+```
+
+```{r,include=FALSE}
+Output_Table2 <-tibble()
+for(i in 1:length(temp2)){
+  table2 <- tryCatch(read.delim(paste(path2,toString(temp2[i]), sep=""), header = FALSE, sep = ","),error = function(e) NULL)
+  Output_Table2 <- bind_rows(Output_Table2, table2)
+}
+
+Output_Table2$V3 <- gsub('{1}.$', '', Output_Table2$V3)
+Output_Table2$V1 <- substring(Output_Table2$V1, 2)
+```
+
+# Plotting the the sample data
+The plot of the sample data gives insight about the data. This help us to know patterns in our data and identify outliers. 
+
+```{r}
+scatterplot3d(Output_Table2, pch = 16,color = "red",
+              main="sample data",
+              xlab = "inp. side Accelerometer",
+              ylab = " out accelerometer",
+              zlab = "Tachnometer reading")
+
+```
+```{r}
+Output_Table2 %>% 
+  ggplot(aes(V1,V3))+
+  geom_point(color = "blue")+
+  xlab("input side Accelerometer")+
+  ylab("Tachnometer reading")+
+  labs(title="2D feature plot")
+  
+```
+
+```{r}
+Output_Table2 %>% 
+  ggplot(aes(V1,V2))+
+  geom_point(color = "blue")+
+  xlab("input side Accelerometer")+
+  ylab("output accelerometer")+
+  labs(title="2D feature plot")
+  
+```
+```{r}
+Output_Table2 %>% 
+  ggplot(aes(V2,V3))+
+  geom_point(color = "blue")+
+  xlab("output accelerometer")+
+  ylab("Tachnometer reading")+
+  labs(title="2D feature plot")
+  
+```
+
+# The elbow plot
+ 
+The elbow plot is helpful when determining the optimal number of clustering (k). We see from the plot that the error rate increases after 2
+
+```{r}
+Output_Table2[,1:3] <- sapply(Output_Table2[,1:3], as.numeric)
+k.max <- 10
+wss <- sapply(1:k.max, 
+              function(k){kmeans(Output_Table2, k, nstart=50,iter.max = 15 )$tot.withinss})
+plot(1:k.max, wss,
+     main="Elbow plot for optimal k",
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters SS")
+
+```
+
+
+
+```{r,include=FALSE}
+path <- "/home/ubuntulab/kmeans-sample/"
+temp <- list.files(path = path, pattern = "part-*")
+```
+
+```{r,include=FALSE}
+Output_Table<-tibble()
+for(i in 1:length(temp)){
+  table <- tryCatch(read.delim(paste(path,toString(temp[i]), sep=""), header = FALSE, sep = ","),error = function(e) NULL)
+  Output_Table <- bind_rows(Output_Table, table)
+}
+Output_Table
+```
+
+# Clustering plot 
+
+
+
+```{r}
+colors <- c("#56B4E9", "#E69F00")
+colors <- colors[as.factor(Output_Table$V1)]
+ss3d <- scatterplot3d(Output_Table[,2:4], pch = 16, color = colors,angle = 55,
+              main="Gearbox clustering result",
+              xlab = "inp. side Accelerometer",
+              ylab = " out accelerometer",
+              zlab = "Tachnometer reading")
+
+legend(ss3d$xyz.convert(-10, -4, 0.5), legend = c('C1','C2'),
+      col =  c("#56B4E9", "#E69F00"), pch = 16)
+```
+
+```{r,include=FALSE}
+path1 <- "/home/ubuntulab/anomalies-sample/"
+temp1 <- list.files(path = path1, pattern = "part-*")
+```
+
+```{r,include=F}
+Output_Table1 <-tibble()
+for(i in 1:length(temp1)){
+  table1 <- tryCatch(read.delim(paste(path1,toString(temp1[i]), sep=""), header = FALSE, sep = ","),error = function(e) NULL)
+  Output_Table1 <- bind_rows(Output_Table1, table1)
+}
+
+Output_Table1$V3 <- gsub('{1}.$', '', Output_Table1$V3)
+Output_Table1$V1 <- substring(Output_Table1$V1, 2)
+```
+
+
+```{r,include=F}
+new_df <- Output_Table1
+```
+
+
+```{r,include=F}
+new_df <- new_df%>% 
+  rename(
+    V2 = V1,
+    V3 = V2,
+    V4 = V3
+    )
+```
+
+# Annomaly plots
+
+```{r,include=F}
+new_df["V1"] <- "2"
+new_df[,1:3] <- sapply(new_df[,1:3], as.numeric)
+
+```
+
+```{r,include=F}
+new_df$V1 <- as.integer(new_df$V1)
+```
+
+
+```{r,include=F}
+merge_df <- merge(Output_Table,new_df,by = c("V1","V2","V3","V4"), all= T)
+
+```
+
+
+```{r,include=FALSE}
+library(rgl)
+library(ggplot2)
+library(rglwidget)
+```
+```{r,include=FALSE}
+merge_df$V1 <- as.factor(merge_df$V1)
+```
+
+
+```{r}
+colors <- c("#56B4E9", "#E69F00", "red")
+colors <- colors[as.factor(merge_df$V1)]
+s3d <- scatterplot3d(merge_df[,2:4], pch = 16, color = colors,angle = 55,main="Anomally detection",
+              xlab = "inp. side Accelerometer",
+              ylab = " out accelerometer",
+              zlab = "Tachnometer reading")
+legend(s3d$xyz.convert(-10, -8, 4.5), legend = c('C1','C2','Ano'),
+      col =  c("#56B4E9", "#E69F00", "red"), pch = 16)
+```
+
+
+# 2D plot after cludtering and anommalies
+
+Here we tried to detect the anomaly from the 2D plot. This helps to know the variables that that have outliers when plotted against each other. Here the 0 and 1 represent the cluster and 2 is the anomaly for each plot
+
+```{r}
+merge_df %>% 
+  ggplot(aes(V2,V3, color = V1))+
+  geom_point()+
+  labs(fill = "cluster")+
+  theme(legend.title = element_blank())+
+  xlab("input side accelerometer")+
+  ylab("output accelerometer")
+  
+```
+
+```{r}
+merge_df %>% 
+  ggplot(aes(V2,V4, color = V1))+
+  geom_point()+
+  theme(legend.title = element_blank())+
+  xlab("input side accelerometer")+
+  ylab("Tachnometer reading")
+```
+
+
+```{r}
+merge_df %>% 
+  ggplot(aes(V3,V4, color = V1))+
+  geom_point()+
+  theme(legend.title = element_blank())+
+  xlab("output accelerometer")+
+  ylab("Tachnometer reading")
+
+```
+
+
+
+
+
+
+
